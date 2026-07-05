@@ -1,0 +1,2 @@
+# TRADING-AI-BOT
+Tradingaibot
