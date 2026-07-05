@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 # 🔑 তোমার BotFather token এখানে বসাবে
-TOKEN = ""8999370933:AAGMh6xONhfRHC4-JoEfhst4h3lEECZ6zUE
+TOKEN = "TOKEN = "8999370933:AAGMh6xONhfRHC4-JoEfhst4h31EECZ6zUE"
 
 # 📊 OTC Market list
 MARKETS = [
