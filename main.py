@@ -15,7 +15,7 @@ from telegram.ext import (
 # =========================
 # 🔑 BOT TOKEN
 # =========================
-TOKEN = "8999370933:AAGMh6xONhfRHC4-JoEfhst4h31EECZ6zUE"
+TOKEN="8999370933:AAGMh6xONhfRHC4-JoEfhst4h31EECZ6zUE"
 
 # =========================
 # 🌐 FLASK SERVER
