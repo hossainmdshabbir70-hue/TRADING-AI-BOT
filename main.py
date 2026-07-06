@@ -107,8 +107,18 @@ telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_ha
 # ▶️ MAIN
 # =========================
 if __name__ == "__main__":
-    # Flask server thread
-    threading.Thread(target=run_web).start()
-    print("🤖 Bot is running...")
-    # Telegram polling
+    import os
+    from threading import Thread
+    
+    # Render-এর পোর্ট সেট করা
+    port = int(os.environ.get("PORT", 10000))
+    
+    # Flask রান করার জন্য থ্রেড চালু করা
+    def start_flask():
+        app_flask.run(host="0.0.0.0", port=port)
+        
+    Thread(target=start_flask).start()
+    print("🤖 Bot & Web Server are running...")
+    
+    # Telegram polling চালু করা
     telegram_app.run_polling()
