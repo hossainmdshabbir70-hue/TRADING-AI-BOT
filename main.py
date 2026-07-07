@@ -98,7 +98,7 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =========================
 # 🤖 TELEGRAM BOT
 # ==========================================
-# 📊 SIGNAL TRACKER (উইন-লস ট্র্যাক করার জন্য)
+# 📊 SIGNAL TRACKER & GLOBAL CONTROL
 # ==========================================
 signal_stats = {
     "total": 12,
@@ -106,18 +106,23 @@ signal_stats = {
     "loss": 2
 }
 
-# ১৫ মিনিট পর পর মেসেজ পাঠানোর জন্য লাস্ট একটিভ চ্যাট আইডি
 last_chat_id = None
+timer_started = False  # টাইমার যেন বারবার চালু না হয়
 
 # ==========================================
-# 🤖 TELEGRAM BOT MULTI-MENU & THREAD SETUP
+# 🤖 TELEGRAM BOT MULTI-MENU FUNCTIONS
 # ==========================================
 
-# ১. স্টার্ট কমান্ড ফাংশн (যা ৩টি বাটন দেখাবে)
+# ১. স্টার্ট কমান্ড ফাংশন (যা ৩টি বাটন দেখাবে)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global last_chat_id
-    last_chat_id = update.effective_chat.id # ইউজারের চ্যাট আইডি সেভ করা
+    global last_chat_id, timer_started
+    last_chat_id = update.effective_chat.id
     
+    # ইউজার প্রথমবার স্টার্ট দিলে ব্যাকগ্রাউন্ডে অটো-রিপোর্ট লুপ চালু হবে (কোনো ক্র্যাশ ছাড়া)
+    if not timer_started:
+        context.application.create_task(auto_report_loop(context))
+        timer_started = True
+
     keyboard = [
         [InlineKeyboardButton("📊 মার্কেট অ্যানালাইসিস (Market Analyze)", callback_data='market_analyze')],
         [InlineKeyboardButton("🟢 লাইভ সিগন্যাল (Live Signal)", callback_data='live_signal')],
@@ -154,17 +159,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'future_signal':
         await future_signal(update, context)
 
-# ৫. থ্রেড টাইমার দিয়ে ১৫ মিনিট পর পর অটো রিপোর্ট পাঠানোর ফাংশন
-def start_report_timer():
+# ৫. নিরাপদ ও অফিশিয়াল নিয়মে ১৫ মিনিট পর পর অটো রিপোর্ট পাঠানোর লুপ
+async def auto_report_loop(context: ContextTypes.DEFAULT_TYPE):
     import asyncio
-    import time
-    
-    # ব্যাকগ্রাউন্ডে আলাদা লুপ তৈরি করা মেসেজ পাঠানোর জন্য
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
     while True:
-        time.sleep(900) # ৯০০ সেকেন্ড = ১৫ মিনিট পর পর রান হবে
+        await asyncio.sleep(900)  # ৯০০ সেকেন্ড = ১৫ মিনিট পর পর চলবে
         if last_chat_id:
             total = signal_stats["total"]
             profit = signal_stats["profit"]
@@ -182,20 +181,19 @@ def start_report_timer():
                 "📈 *সঠিক সময়ে এন্ট্রি নিয়ে প্রফিট বুক করুন!*"
             )
             try:
-                # সিঙ্ক্রোনাসলি মেসেজটি সেন্ড করা
-                loop.run_until_complete(telegram_app.bot.send_message(chat_id=last_chat_id, text=report_text, parse_mode='Markdown'))
-                print("⏰ 15-minute report sent successfully!")
+                await context.bot.send_message(chat_id=last_chat_id, text=report_text, parse_mode='Markdown')
+                print("⏰ 15-minute report sent successfully via asyncio task!")
             except Exception as e:
                 print(f"Error sending automatic report: {e}")
 
-# সাধারণ নিয়মে বট বিল্ড করা (কোনো এক্সট্রা ঝামেলা নেই)
+# বট বিল্ড করা
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
 # ==========================================
-# 🌐 MAIN & SERVER START
+# 🌐 MAIN & WEB SERVER START
 # ==========================================
 if __name__ == "__main__":
     import os
@@ -203,13 +201,10 @@ if __name__ == "__main__":
     
     port = int(os.environ.get("PORT", 10000))
     
-    # Flask সার্ভার থ্রেড
+    # Flask সার্ভার ব্যাকগ্রাউন্ডে চালু রাখা (Render-এর পোর্ট সচল রাখার জন্য)
     def start_flask():
         app_flask.run(host="0.0.0.0", port=port)
     Thread(target=start_flask, daemon=True).start()
     
-    # ১৫ মিনিটের অটো-রিপোর্ট থ্রেড
-    Thread(target=start_report_timer, daemon=True).start()
-    
-    print("🤖 Bot & Web Server are running smoothly...")
+    print("🤖 Bot & Web Server are running smoothly without conflicts...")
     telegram_app.run_polling()
