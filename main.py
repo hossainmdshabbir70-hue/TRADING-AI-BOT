@@ -99,35 +99,8 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🤖 TELEGRAM BOT
 # =========================
 # ==========================================
-# 🌐 MAIN & FLASK SERVER THREAD
-# ==========================================
-if __name__ == "__main__":
-    import os
-    from threading import Thread
-    
-    # Render-এর পোর্ট সেট করা
-    port = int(os.environ.get("PORT", 10000))
-    
-    # Flask রান করার জন্য থ্রেড চালু করা
-    def start_flask():
-        app_flask.run(host="0.0.0.0", port=port)
-        
-    Thread(target=start_flask).start()
-    print("🤖 Bot & Web Server are running...")
-    
-    # job_queue সঠিকভাবে ইনিশিয়ালাইজ হয়েছে কি না চেক করে টাইমার চালু করা
-    if telegram_app.job_queue:
-        telegram_app.job_queue.run_repeating(send_15min_report, interval=900, first=10)
-        print("⏰ Job Queue successfully started!")
-    else:
-        print("⚠️ Job Queue could not be started because dependencies are missing.")
-    
-    # Telegram polling চালু করা
-    telegram_app.run_polling()
-
 # 📊 SIGNAL TRACKER (উইন-লস ট্র্যাক করার জন্য)
 # ==========================================
-# এখানে তোমার সিগন্যালের লাইভ ডাটা আপডেট হবে। আপাতত ডেমো ভ্যালু দেওয়া হলো।
 signal_stats = {
     "total": 12,
     "profit": 10,
@@ -140,7 +113,7 @@ signal_stats = {
 
 # ১. স্টার্ট কমান্ড ফাংশন (যা ৩টি বাটন দেখাবে)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # যে ইউজার স্টার্ট করেছে তার চ্যাট আইডি সেভ করে রাখা (১৫ মিনিট পর পর মেসেজ পাঠানোর জন্য)
+    # ইউজারের চ্যাট আইডি সেভ করে রাখা (১৫ মিনিট পর পর মেসেজ পাঠানোর জন্য)
     context.application.user_data['chat_id'] = update.effective_chat.id
     
     keyboard = [
@@ -181,7 +154,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ৫. প্রতি ১৫ মিনিট পর পর উইন-লস রিপোর্ট পাঠানোর অটোমেটিক ফাংশন
 async def send_15min_report(context: ContextTypes.DEFAULT_TYPE):
-    # এখানে উইন রেট হিসাব করা হচ্ছে
     total = signal_stats["total"]
     profit = signal_stats["profit"]
     loss = signal_stats["loss"]
@@ -198,20 +170,20 @@ async def send_15min_report(context: ContextTypes.DEFAULT_TYPE):
         "📈 *সঠিক সময়ে এন্ট্রি নিয়ে প্রফিট বুক করুন!*"
     )
     
-    # বটের সাথে চ্যাট করা লাস্ট ইউজারের কাছে পাঠানো (অথবা নির্দিষ্ট চ্যানেল আইডি দিতে পারো)
-    chat_id = context.job.chat_id
+    # লাস্ট একটিভ ইউজারের কাছে পাঠানো
+    chat_id = context.application.user_data.get('chat_id')
     if chat_id:
         try:
             await context.bot.send_message(chat_id=chat_id, text=report_text, parse_mode='Markdown')
         except Exception as e:
             print(f"মেসেজ পাঠাতে সমস্যা হয়েছে: {e}")
 
-# বটের মূল অ্যাপ্লিকেশান ও হ্যান্ডলার সেটআপ
-telegram_app = ApplicationBuilder().token(TOKEN).build()
+# 🛠️ এখানে আমরা job_queue সাপোর্ট সহ বট বিল্ড করছি (আগের ভুলটি এখানেই ছিল)
+telegram_app = ApplicationBuilder().token(TOKEN).job_queue(None).build()
 
+# হ্যান্ডলারগুলো যুক্ত করা
 telegram_app.add_handler(CommandHandler("start", start))
-telegram_app.add_handler(CallbackQueryHandler(button_handler)) 
-telegram_app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler))
+telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
 # ==========================================
 # 🌐 MAIN & FLASK SERVER THREAD
@@ -220,20 +192,17 @@ if __name__ == "__main__":
     import os
     from threading import Thread
     
-    # Render-এর পোর্ট সেট করা
     port = int(os.environ.get("PORT", 10000))
     
-    # Flask রান করার জন্য থ্রেড চালু করা
     def start_flask():
         app_flask.run(host="0.0.0.0", port=port)
         
     Thread(target=start_flask).start()
     print("🤖 Bot & Web Server are running...")
     
-    # ১৫ মিনিট (১৫ * ৬০ = ৯০০ সেকেন্ড) পর পর অটো রিপোর্টের জন্য টাইমার সেট করা
-    # টেস্ট করার জন্য চাইলে প্রথমবার ৯০০ এর জায়গায় ৩০ বা ৬০ সেকেন্ড দিয়ে দেখতে পারো
-    chat_id_dummy = None # প্রথমবার স্টার্ট করলেই আইডি অটো সেট হবে
-    telegram_app.job_queue.run_repeating(send_15min_report, interval=900, first=10)
-    
-    # Telegram polling চালু করা
+    # বটের নিজস্ব job_queue চালু করা
+    if telegram_app.job_queue:
+        telegram_app.job_queue.run_repeating(send_15min_report, interval=900, first=10)
+        print("⏰ Job Queue successfully started!")
+        
     telegram_app.run_polling()
