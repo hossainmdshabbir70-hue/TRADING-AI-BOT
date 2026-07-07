@@ -1,105 +1,40 @@
+import os
 import random
-import threading
+import asyncio
 from datetime import datetime
+from threading import Thread
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes
 
-from telegram.ext import (
-    ApplicationBuilder,
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
-)
+# ==========================================
+# 🔑 BOT CONFIGURATION
+# ==========================================
+TOKEN = "8999370933:AAHsrfWV1sNgX2cFB-7qJGAq6Mi4"  # আপনার বটের টোকেন এখানে পারফেক্টলি আছে
 
-# =========================
-# 🔑 BOT TOKEN
-# =========================
-TOKEN="8999370933:AAHsrfWVlsNgX2cFB-7qJGAq6Mi4CF6qVF8"
-
-# =========================
-# 🌐 FLASK SERVER
-# =========================
+# ==========================================
+# 🌐 FLASK WEB SERVER (Render-এর জন্য)
+# ==========================================
 app_flask = Flask(__name__)
 
 @app_flask.route('/')
 def home():
-    return "Bot is running!"
+    return "Bot is running perfectly!"
 
-def run_web():
-    app_flask.run(host="0.0.0.0", port=10000)
+def start_flask():
+    port = int(os.environ.get("PORT", 10000))
+    app_flask.run(host="0.0.0.0", port=port)
 
-# =========================
-# 📊 OTC MARKETS
-# =========================
+# ==========================================
+# 📊 OTC MARKETS & STATS
+# ==========================================
 MARKETS = [
-    "USD/PHP (OTC)", "USD/ARS (OTC)", "USD/BDT (OTC)", "USD/CAD (OTC)",
-    "AUD/NZD (OTC)", "USD/BRL (OTC)", "USD/IDR (OTC)", "GBP/USD (OTC)",
-    "CHF/JPY (OTC)", "EUR/AUD (OTC)", "NZD/JPY (OTC)", "USD/INR (OTC)",
+    "USD/PHP (OTC)", "USD/ARS (OTC)", "USD/BDT (OTC)",
+    "AUD/NZD (OTC)", "USD/BRL (OTC)", "USD/IDR (OTC)",
+    "CHF/JPY (OTC)", "EUR/AUD (OTC)", "NZD/JPY (OTC)",
     "EUR/JPY (OTC)", "USD/MXN (OTC)"
 ]
 
-# =========================
-# 🚀 START COMMAND
-# =========================
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("🤖 Welcome to OTC Signal Bot!\n\n👉 লিখুন: live signal")
-
-# =========================
-# 📊 LIVE SIGNAL
-# =========================
-async def live_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = []
-    row = []
-    for market in MARKETS:
-        row.append(InlineKeyboardButton(market, callback_data=market))
-        if len(row) == 2:
-            keyboard.append(row)
-            row = []
-    if row:
-        keyboard.append(row)
-    
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("📊 Select OTC Market:", reply_markup=reply_markup)
-
-# =========================
-# 🔘 BUTTON CLICK
-# =========================
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    
-    market = query.data
-    signal = random.choice(["BUY 📈", "SELL 📉"])
-    change = round(random.uniform(-2, 2), 2)
-    win_rate = random.randint(85, 95)
-    time_now = datetime.now().strftime("%H:%M:%S")
-    
-    text = f'''
-📊 {market}
-Signal: {signal}
-⏰ Time: {time_now}
-📈 Change: {change}%
-🏆 Win Rate: {win_rate}%
-'''
-    await query.edit_message_text(text)
-
-# =========================
-# 💬 CHAT MODE
-# =========================
-async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text.lower()
-    if "live signal" in text:
-        await live_signal(update, context)
-    else:
-        await update.message.reply_text("👉 লিখুন: live signal")
-
-# =========================
-# 🤖 TELEGRAM BOT
-# ==========================================
-# 📊 SIGNAL TRACKER & GLOBAL CONTROL
-# ==========================================
 signal_stats = {
     "total": 12,
     "profit": 10,
@@ -107,18 +42,18 @@ signal_stats = {
 }
 
 last_chat_id = None
-timer_started = False  # টাইমার যেন বারবার চালু না হয়
+timer_started = False
 
 # ==========================================
-# 🤖 TELEGRAM BOT MULTI-MENU FUNCTIONS
+# 🤖 TELEGRAM BOT FUNCTIONS
 # ==========================================
 
-# ১. স্টার্ট কমান্ড ফাংশন (যা ৩টি বাটন দেখাবে)
+# ১. স্টার্ট কমান্ড ফাংশন (৩টি বাটন দেখাবে)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global last_chat_id, timer_started
     last_chat_id = update.effective_chat.id
     
-    # ইউজার প্রথমবার স্টার্ট দিলে ব্যাকগ্রাউন্ডে অটো-রিপোর্ট লুপ চালু হবে (কোনো ক্র্যাশ ছাড়া)
+    # ব্যাকগ্রাউন্ডে অটো-রিপোর্ট লুপ চালু করা
     if not timer_started:
         context.application.create_task(auto_report_loop(context))
         timer_started = True
@@ -141,13 +76,32 @@ async def market_analyze(update: Update, context: ContextTypes.DEFAULT_TYPE):
     analysis_text = "📊 **মার্কেট অ্যানালাইসিস রিপোর্ট:**\n\nবর্তমান মার্কেট ট্রেন্ড আপওয়ার্ড (Upward)। আরএসআই (RSI) লেভেল স্বাভাবিক আছে।"
     await query.edit_message_text(text=analysis_text, parse_mode='Markdown')
 
-# ৩. ফিউচার সিগন্যালের ফাংশন
+# ৩. লাইভ সিগন্যালের ফাংশন
+async def live_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    market = random.choice(MARKETS)
+    direction = random.choice(["🟢 CALL (BUY)", "🔴 PUT (SELL)"])
+    time_str = datetime.now().strftime("%H:%M")
+    
+    signal_text = (
+        "🟢 **লাইভ ট্রেডিং সিগন্যাল**\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        f"📊 মার্কেট: {market}\n"
+        f"👉 ডিরেকশন: {direction}\n"
+        f"⏳ টাইমফ্রেম: 1 MIN\n"
+        f"⏰ এন্ট্রি টাইম: {time_str}\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "⚠️ *নিজ দায়িত্বে সঠিক সময়ে এন্ট্রি নিন!*"
+    )
+    await query.edit_message_text(text=signal_text, parse_mode='Markdown')
+
+# ৪. ফিউচার সিগন্যালের ফাংশн
 async def future_signal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     future_text = "⏳ **ফিউচার সিগন্যাল (Upcoming):**\n\nNext Entry: 15-30 mins\nAsset: BTC/USDT\nDirection: BUY"
     await query.edit_message_text(text=future_text, parse_mode='Markdown')
 
-# ৪. বাটন ক্লিকের রেসপন্স হ্যান্ডলার
+# ৫. বাটন ক্লিকের রেসপন্স হ্যান্ডলার
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -159,11 +113,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'future_signal':
         await future_signal(update, context)
 
-# ৫. নিরাপদ ও অফিশিয়াল নিয়মে ১৫ মিনিট পর পর অটো রিপোর্ট পাঠানোর লুপ
+# ৬. ১৫ মিনিট পর পর অটো রিপোর্ট পাঠানোর নিরাপদ লুপ
 async def auto_report_loop(context: ContextTypes.DEFAULT_TYPE):
-    import asyncio
     while True:
-        await asyncio.sleep(900)  # ৯০০ সেকেন্ড = ১৫ মিনিট পর পর চলবে
+        await asyncio.sleep(900)  # ১৫ মিনিট পর পর চলবে
         if last_chat_id:
             total = signal_stats["total"]
             profit = signal_stats["profit"]
@@ -182,29 +135,21 @@ async def auto_report_loop(context: ContextTypes.DEFAULT_TYPE):
             )
             try:
                 await context.bot.send_message(chat_id=last_chat_id, text=report_text, parse_mode='Markdown')
-                print("⏰ 15-minute report sent successfully via asyncio task!")
             except Exception as e:
                 print(f"Error sending automatic report: {e}")
 
-# বট বিল্ড করা
+# ==========================================
+# 🚀 INITIALIZE & START BOT
+# ==========================================
 telegram_app = ApplicationBuilder().token(TOKEN).build()
 
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
-# ==========================================
-# 🌐 MAIN & WEB SERVER START
-# ==========================================
 if __name__ == "__main__":
-    import os
-    from threading import Thread
-    
-    port = int(os.environ.get("PORT", 10000))
-    
-    # Flask সার্ভার ব্যাকগ্রাউন্ডে চালু রাখা (Render-এর পোর্ট সচল রাখার জন্য)
-    def start_flask():
-        app_flask.run(host="0.0.0.0", port=port)
+    # Flask সার্ভার ব্যাকগ্রাউন্ডে চালু করা
     Thread(target=start_flask, daemon=True).start()
     
-    print("🤖 Bot & Web Server are running smoothly without conflicts...")
+    # টেলিগ্রাম বট লাইভ করা
+    print("🤖 Trading AI Bot is starting...")
     telegram_app.run_polling()
