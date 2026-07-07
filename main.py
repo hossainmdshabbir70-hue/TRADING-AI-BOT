@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify
 # ==========================================
 # 🔑 BOT CONFIGURATION
 # ==========================================
-TOKEN = "8999370933:AAHsrfWV1sNgX2cFB-7qJGAq6Mi4"
+TOKEN="8999370933:AAEC1aGgpIyE1C1kDJNB_Mu5t25BSyEDQ30"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 # ==========================================
