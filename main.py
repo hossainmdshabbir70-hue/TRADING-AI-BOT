@@ -99,6 +99,32 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🤖 TELEGRAM BOT
 # =========================
 # ==========================================
+# 🌐 MAIN & FLASK SERVER THREAD
+# ==========================================
+if __name__ == "__main__":
+    import os
+    from threading import Thread
+    
+    # Render-এর পোর্ট সেট করা
+    port = int(os.environ.get("PORT", 10000))
+    
+    # Flask রান করার জন্য থ্রেড চালু করা
+    def start_flask():
+        app_flask.run(host="0.0.0.0", port=port)
+        
+    Thread(target=start_flask).start()
+    print("🤖 Bot & Web Server are running...")
+    
+    # job_queue সঠিকভাবে ইনিশিয়ালাইজ হয়েছে কি না চেক করে টাইমার চালু করা
+    if telegram_app.job_queue:
+        telegram_app.job_queue.run_repeating(send_15min_report, interval=900, first=10)
+        print("⏰ Job Queue successfully started!")
+    else:
+        print("⚠️ Job Queue could not be started because dependencies are missing.")
+    
+    # Telegram polling চালু করা
+    telegram_app.run_polling()
+
 # 📊 SIGNAL TRACKER (উইন-লস ট্র্যাক করার জন্য)
 # ==========================================
 # এখানে তোমার সিগন্যালের লাইভ ডাটা আপডেট হবে। আপাতত ডেমো ভ্যালু দেওয়া হলো।
