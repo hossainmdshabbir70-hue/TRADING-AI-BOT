@@ -97,7 +97,6 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # =========================
 # 🤖 TELEGRAM BOT
-# =========================
 # ==========================================
 # 📊 SIGNAL TRACKER (উইন-লস ট্র্যাক করার জন্য)
 # ==========================================
@@ -107,14 +106,17 @@ signal_stats = {
     "loss": 2
 }
 
+# ১৫ মিনিট পর পর মেসেজ পাঠানোর জন্য লাস্ট একটিভ চ্যাট আইডি
+last_chat_id = None
+
 # ==========================================
-# 🤖 TELEGRAM BOT MULTI-MENU & JOB SETUP
+# 🤖 TELEGRAM BOT MULTI-MENU & THREAD SETUP
 # ==========================================
 
-# ১. স্টার্ট কমান্ড ফাংশন (যা ৩টি বাটন দেখাবে)
+# ১. স্টার্ট কমান্ড ফাংশн (যা ৩টি বাটন দেখাবে)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # ইউজারের চ্যাট আইডি সেভ করে রাখা (১৫ মিনিট পর পর মেসেজ পাঠানোর জন্য)
-    context.application.user_data['chat_id'] = update.effective_chat.id
+    global last_chat_id
+    last_chat_id = update.effective_chat.id # ইউজারের চ্যাট আইডি সেভ করা
     
     keyboard = [
         [InlineKeyboardButton("📊 মার্কেট অ্যানালাইসিস (Market Analyze)", callback_data='market_analyze')],
@@ -152,41 +154,48 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == 'future_signal':
         await future_signal(update, context)
 
-# ৫. প্রতি ১৫ মিনিট পর পর উইন-লস রিপোর্ট পাঠানোর অটোমেটিক ফাংশন
-async def send_15min_report(context: ContextTypes.DEFAULT_TYPE):
-    total = signal_stats["total"]
-    profit = signal_stats["profit"]
-    loss = signal_stats["loss"]
-    win_rate = (profit / total) * 100 if total > 0 else 0
+# ৫. থ্রেড টাইমার দিয়ে ১৫ মিনিট পর পর অটো রিপোর্ট পাঠানোর ফাংশন
+def start_report_timer():
+    import asyncio
+    import time
     
-    report_text = (
-        "📊 **ট্রেডিং রেজাল্ট আপডেট (প্রতি ১৫ মিনিট পর পর)**\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        f" মোট সিগন্যাল: {total} টি\n"
-        f"🟢 প্রফিট (Win): {profit} টি ✅\n"
-        f"🔴 লস (Loss): {loss} টি ❌\n"
-        f"🏆 উইনিং রেট (Win Rate): {win_rate:.1f}%\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "📈 *সঠিক সময়ে এন্ট্রি নিয়ে প্রফিট বুক করুন!*"
-    )
+    # ব্যাকগ্রাউন্ডে আলাদা লুপ তৈরি করা মেসেজ পাঠানোর জন্য
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     
-    # লাস্ট একটিভ ইউজারের কাছে পাঠানো
-    chat_id = context.application.user_data.get('chat_id')
-    if chat_id:
-        try:
-            await context.bot.send_message(chat_id=chat_id, text=report_text, parse_mode='Markdown')
-        except Exception as e:
-            print(f"মেসেজ পাঠাতে সমস্যা হয়েছে: {e}")
+    while True:
+        time.sleep(900) # ৯০০ সেকেন্ড = ১৫ মিনিট পর পর রান হবে
+        if last_chat_id:
+            total = signal_stats["total"]
+            profit = signal_stats["profit"]
+            loss = signal_stats["loss"]
+            win_rate = (profit / total) * 100 if total > 0 else 0
+            
+            report_text = (
+                "📊 **ট্রেডিং রেজাল্ট আপডেট (প্রতি ১৫ মিনিট পর পর)**\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                f" মোট সিগন্যাল: {total} টি\n"
+                f"🟢 প্রফিট (Win): {profit} টি ✅\n"
+                f"🔴 লস (Loss): {loss} টি ❌\n"
+                f"🏆 উইনিং রেট (Win Rate): {win_rate:.1f}%\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "📈 *সঠিক সময়ে এন্ট্রি নিয়ে প্রফিট বুক করুন!*"
+            )
+            try:
+                # সিঙ্ক্রোনাসলি মেসেজটি সেন্ড করা
+                loop.run_until_complete(telegram_app.bot.send_message(chat_id=last_chat_id, text=report_text, parse_mode='Markdown'))
+                print("⏰ 15-minute report sent successfully!")
+            except Exception as e:
+                print(f"Error sending automatic report: {e}")
 
-# 🛠️ এখানে আমরা job_queue সাপোর্ট সহ বট বিল্ড করছি (আগের ভুলটি এখানেই ছিল)
-telegram_app = ApplicationBuilder().token(TOKEN).job_queue(None).build()
+# সাধারণ নিয়মে বট বিল্ড করা (কোনো এক্সট্রা ঝামেলা নেই)
+telegram_app = ApplicationBuilder().token(TOKEN).build()
 
-# হ্যান্ডলারগুলো যুক্ত করা
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CallbackQueryHandler(button_handler))
 
 # ==========================================
-# 🌐 MAIN & FLASK SERVER THREAD
+# 🌐 MAIN & SERVER START
 # ==========================================
 if __name__ == "__main__":
     import os
@@ -194,15 +203,13 @@ if __name__ == "__main__":
     
     port = int(os.environ.get("PORT", 10000))
     
+    # Flask সার্ভার থ্রেড
     def start_flask():
         app_flask.run(host="0.0.0.0", port=port)
-        
-    Thread(target=start_flask).start()
-    print("🤖 Bot & Web Server are running...")
+    Thread(target=start_flask, daemon=True).start()
     
-    # বটের নিজস্ব job_queue চালু করা
-    if telegram_app.job_queue:
-        telegram_app.job_queue.run_repeating(send_15min_report, interval=900, first=10)
-        print("⏰ Job Queue successfully started!")
-        
+    # ১৫ মিনিটের অটো-রিপোর্ট থ্রেড
+    Thread(target=start_report_timer, daemon=True).start()
+    
+    print("🤖 Bot & Web Server are running smoothly...")
     telegram_app.run_polling()
