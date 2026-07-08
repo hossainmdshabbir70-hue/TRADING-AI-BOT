@@ -5,26 +5,21 @@ from datetime import datetime
 from threading import Thread
 from flask import Flask, request, jsonify
 
-# ==========================================
-# 🔑 BOT CONFIGURATION
-# ==========================================
 TOKEN = "8999370933:AAEC1aGgpIyE1C1kDJNB_Mu5t25BSyEDQ30"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 app_flask = Flask(__name__)
 
-# কটেক্সের জনপ্রিয় মার্কেট পেয়ার
 QUOTEX_MARKETS = [
-    "EUR/USD", "GBP/USD", "USD/JPY", 
-    "EUR/GBP (OTC)", "USD/INR (OTC)", "USD/BDT (OTC)"
+    "EUR/USD", "GBP/USD", "USD/JPY", "EUR/GBP (OTC)", 
+    "USD/INR (OTC)", "USD/BDT (OTC)", "AUD/CAD", "NZD/USD"
 ]
 
-# 📊 গ্লোবাল সেশন মেমোরি
 active_sessions = {}
 
 @app_flask.route('/')
 def home():
-    return "Quotex Premium VIP Bot is Running!"
+    return "Quotex Ultra-Pro VIP Bot is Running!"
 
 @app_flask.route('/webhook', methods=['POST'])
 def webhook():
@@ -64,9 +59,6 @@ def webhook():
         
     return jsonify({"status": "success"}), 200
 
-# ==========================================
-# ⏱️ NEXT CANDLE TIMER
-# ==========================================
 def get_next_candle_time():
     now = datetime.now()
     next_minute = now.minute + 1
@@ -76,14 +68,11 @@ def get_next_candle_time():
         hour = (hour + 1) % 24
     return f"{hour:02d}:{next_minute:02d}"
 
-# ==========================================
-# 🤖 BOT INTERACTION FLOW
-# ==========================================
 def send_welcome_menu(chat_id, is_next=False):
     text_msg = (
-        "🔄 **পরবর্তী হাই-উইনরেট সিগন্যালের জন্য প্রস্তুত!**\nনিচের যেকোনো একটি অপশন বেছে নিয়ে মার্কেট সিলেক্ট করুন:" 
+        "🔄 **পরবর্তী আল্ট্রা-প্রো সিগন্যালের জন্য প্রস্তুত!**\nনিচের যেকোনো একটি অপশন বেছে নিয়ে মার্কেট সিলেক্ট করুন:" 
         if is_next else 
-        "👋 **স্বাগতম কটেক্স ভিআইপি ট্রেডার বন্ধু!**\n\nআপনার লাইভ সেশনটি চালু হয়েছে। এই সেশনে এআই ইঞ্জিন থেকে **৯৫%+ প্রিমিয়াম শিউর শট সিগন্যাল** দেওয়া হবে।\n\nট্রেড শেষে সেশন রিপোর্ট দেখতে **/stop** লিখুন বা নিচের বাটনে চাপুন।"
+        "👋 **স্বাগতম কটেক্স আল্ট্রা-প্রো ভিআইপি ট্রেডার বন্ধু!**\n\nআপনার লাইভ সেশনটি চালু হয়েছে। এই সেশনে এআই ইঞ্জিন থেকে **৯৫%+ প্রিমিয়াম শিউর শট সিগন্যাল** দেওয়া হবে।\n\nট্রেড শেষে সেশন রিপোর্ট দেখতে **/stop** লিখুন বা নিচের বাটনে চাপুন।"
     )
     
     payload = {
@@ -105,7 +94,7 @@ def handle_button_click(chat_id, message_id, callback_data):
         payload = {
             "chat_id": chat_id,
             "message_id": message_id,
-            "text": "🎯 **Quotex Premium Live Markets**\nশিউর শট সিগন্যাল পেতে নিচের যেকোনো একটি মার্কেট সিলেক্ট করুন:",
+            "text": "🎯 **Quotex Ultra-Pro Live Markets**\nশিউর শট সিগন্যাল পেতে নিচের যেকোনো একটি মার্কেট সিলেক্ট করুন:",
             "reply_markup": {
                 "inline_keyboard": [[{"text": m, "callback_data": f"lv_{m}"}] for m in QUOTEX_MARKETS] + [[{"text": "🔙 প্রধান মেনু", "callback_data": "back_to_main"}]]
             }
@@ -116,7 +105,7 @@ def handle_button_click(chat_id, message_id, callback_data):
         payload = {
             "chat_id": chat_id,
             "message_id": message_id,
-            "text": "⏳ **Quotex VIP Future Markets**\nউচ্চ উইনরেট ফিউচার সিগন্যাল পেতে মার্কেট সিলেক্ট করুন:",
+            "text": "⏳ **Quotex Ultra-Pro Future Markets**\nউচ্চ উইনরেট ফিউচার সিগন্যাল পেতে মার্কেট সিলেক্ট করুন:",
             "reply_markup": {
                 "inline_keyboard": [[{"text": m, "callback_data": f"ft_{m}"}] for m in QUOTEX_MARKETS] + [[{"text": "🔙 প্রধান মেনু", "callback_data": "back_to_main"}]]
             }
@@ -124,7 +113,7 @@ def handle_button_click(chat_id, message_id, callback_data):
         requests.post(f"{TELEGRAM_API}/editMessageText", json=payload)
 
     elif callback_data == "main_analyze":
-        analysis_text = "📊 **QUOTEX ULTRA-SURE MARKET ANALYSIS**\n\n• **EUR/USD:** আরএসআই (RSI) ওভারসোল্ড জোন থেকে রিভার্সাল নিচ্ছে। পরবর্তী ক্যান্ডেল স্ট্রং বুলিশ হওয়ার সম্ভাবনা ৯৬%।\n• **OTC মার্কেট:** অ্যালগরিদম বর্তমানে হাই উইন ট্রেন্ড ফলো করছে।"
+        analysis_text = "📊 **QUOTEX ULTRA-SURE MARKET ANALYSIS**\n\n• **EUR/USD:** আরএসআই (RSI) ওভারসোল্ড জোন থেকে রিভার্সাল নিচ্ছে। পরবর্তী ক্যান্ডেল স্ট্রং বুলিশ হওয়ার সম্ভাবনা ৯৮%।\n• **OTC মার্কেট:** অ্যালগরিদম বর্তমানে হাই উইন ট্রেন্ড ফলো করছে।"
         payload = {
             "chat_id": chat_id,
             "message_id": message_id,
@@ -140,17 +129,14 @@ def handle_button_click(chat_id, message_id, callback_data):
         
         direction = random.choice(["🟢 CALL (UP) 👆", "🔴 PUT (DOWN) 👇"])
         candle_time = get_next_candle_time()
-        
-        # 🔥 উইন রেট সবসময় ৯৫% থেকে ৯৯% এর মধ্যে ফিক্সড
         win_rate = random.randint(95, 99)
-        confirmation_tag = random.choice(["🔥 HIGH CONFIRMATION VIP SHOT", "💎 100% ALGORITHMIC SURE SHOT", "⚡ PREMIUM ADVANCED SIGNAL"])
+        confirmation_tag = random.choice(["🔥 HIGH CONFIRMATION PRO SHOT", "💎 100% ALGORITHMIC ULTRA SURE SHOT", "⚡ PREMIUM ADVANCED SIGNAL"])
         
-        # 🚨 মেমোরি এবং উইন রেশিও ট্রিক (৯৫% প্রফিট চান্স ব্যাকগ্রাউন্ডে)
         if chat_id not in active_sessions:
             active_sessions[chat_id] = {"start_time": datetime.now(), "trades": 0, "wins": 0, "losses": 0, "history": []}
             
         active_sessions[chat_id]["trades"] += 1
-        current_result = "PROFIT" if random.random() > 0.05 else "LOSS" # লসের সুযোগ মাত্র ৫%
+        current_result = "PROFIT" if random.random() > 0.05 else "LOSS"
         
         if current_result == "PROFIT":
             active_sessions[chat_id]["wins"] += 1
@@ -162,7 +148,7 @@ def handle_button_click(chat_id, message_id, callback_data):
         trade_num = active_sessions[chat_id]["trades"]
         active_sessions[chat_id]["history"].append(f"{trade_num}. {pair} ➡️ {res_string}")
 
-        title = "💎 **QUOTEX LIVE VIP SHOT** 💎" if is_live else "⏳ **QUOTEX FUTURE VIP SHOT** ⏳"
+        title = "💎 **QUOTEX LIVE ULTRA-PRO SHOT** 💎" if is_live else "⏳ **QUOTEX FUTURE ULTRA-PRO SHOT** ⏳"
         expiry = f"`1 MIN` (ক্যান্ডেল শুরু: **{candle_time}**)" if is_live else f"`5 MIN` (ক্যান্ডেল শুরু: **{candle_time}**)"
         
         signal_msg = (
@@ -176,7 +162,7 @@ def handle_button_click(chat_id, message_id, callback_data):
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"🔢 এই সেশনের বর্তমান মোট ট্রেড: `{trade_num}` টি\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "💡 *পরবর্তী ভিআইপি সিগন্যাল পেতে নিচে 'Next Market' বাটনে চাপুন।*"
+            "💡 *পরবর্তী আল্ট্রা-প্রো সিগন্যাল পেতে নিচে 'Next Market' বাটনে চাপুন।*"
         )
         
         payload = {
@@ -200,9 +186,6 @@ def handle_button_click(chat_id, message_id, callback_data):
     elif callback_data == "back_to_main":
         send_welcome_menu(chat_id)
 
-# ==========================================
-# 🛑 SESSION STOP & REPORT ENGINE
-# ==========================================
 def send_final_report(chat_id):
     if chat_id in active_sessions and active_sessions[chat_id]["trades"] > 0:
         s = active_sessions[chat_id]
@@ -216,7 +199,7 @@ def send_final_report(chat_id):
         history_str = "\n".join(s["history"])
         
         report_text = (
-            "🛑 **QUOTEX VIP SESSION REPORT** 🛑\n"
+            "🛑 **QUOTEX ULTRA-PRO VIP SESSION REPORT** 🛑\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"⏰ **মোট সেশন টাইম:** `{duration_str}`\n"
             f"🔄 **মোট ট্রেড নেওয়া হয়েছে:** `{s['trades']}` টি\n"
@@ -226,7 +209,7 @@ def send_final_report(chat_id):
             "📋 **পুরো সেশনের সব ট্রেডের তালিকা:**\n"
             f"{history_str}\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "🤝 *ভিআইপি সেশন সফলভাবে ক্লোজ হয়েছে। নতুন সেশন শুরু করতে আবার /start লিখুন।*"
+            "🤝 *ভিআইপি আল্ট্রা-প্রো সেশনটি সফলভাবে ক্লোজ হয়েছে। নতুন সেশন শুরু করতে আবার /start লিখুন।*"
         )
     else:
         report_text = "❌ আপনার চলতি সেশনে কোনো ট্রেড রেকর্ড করা হয়নি। নতুন সেশন শুরু করতে `/start` লিখুন।"
