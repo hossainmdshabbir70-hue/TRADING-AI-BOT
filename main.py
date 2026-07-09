@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from tradingview_ta import TA_Handler, Interval
 
-TOKEN = "8999370933:AAEC1aGgpIyE1C1kDJNB_Mu5t25BS_EDQ30"
+TOKEN = "8999370933:AAEC1aGgpIyE1C1kDJNB_Mu5t25BSyEDQ30"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 app_flask = Flask(__name__)
