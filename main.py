@@ -1,11 +1,12 @@
-iport os
+import os
+import os
 import requests
 import random
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from tradingview_ta import TA_Handler, Interval
 
-TOKEN = "8999370933:AAEC1aGgpIyE1C1kDJNB_Mu5t25BSyEDQ30"
+TOKEN = "8999370933:AAEC1aGgpIyE1C1kDJNB_Mu5t25BS_EDQ30"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 app_flask = Flask(__name__)
@@ -64,7 +65,7 @@ def init_session(chat_id):
     }
 
 def get_times():
-    # বর্তমান লাইভ সময় এবং ৫ মিনিট পরের ক্যান্ডেল শুরু ও শেষের সময়
+    # বর্তমান লাইভ সময় এবং ৫ মিনিট পরের ক্যান্ডেল শুরুর সময়
     now_time = datetime.now().strftime("%H:%M:%S")
     candle_start = (datetime.now() + timedelta(minutes=1)).strftime("%H:%M")
     return now_time, candle_start
@@ -89,13 +90,11 @@ def analyze_stable_5m_market(pair):
         neutral_signals = summary.get("NEUTRAL", 0)
         total = buy_signals + sell_signals + neutral_signals if (buy_signals + sell_signals + neutral_signals) > 0 else 1
         
-        # নিখুঁত সিগন্যাল ফিল্টার: যদি মার্কেট অতিরিক্ত নিউট্রাল থাকে (যেমন BUY বা SELL কোনোটিই শক্তিশালী নয়)
-        # অথবা যদি মুভিং এভারেজ ও অসিলেটর সম্পূর্ণ একমত না হতে পারে
         buy_ratio = buy_signals / total
         sell_ratio = sell_signals / total
         
+        # নিখুঁত সিগন্যাল ফিল্টার: মার্কেট অনিশ্চিত বা নিউট্রাল হলে রিজেক্ট করবে
         if abs(buy_signals - sell_signals) <= 2 or (buy_ratio < 0.40 and sell_ratio < 0.40):
-            # মার্কেট অনিশ্চিত বা নিউট্রাল, কোনো সিগন্যাল দেওয়া যাবে না
             return None, None, rsi, 0, None
 
         if buy_signals > sell_signals:
@@ -110,7 +109,6 @@ def analyze_stable_5m_market(pair):
             
         return direction, trend, rsi, accuracy, current_result
     except Exception as e:
-        # এপিআই এরর বা অফলাইন থাকলে সেফটি রেসপন্স
         return "🟢 CALL (UP) 👆", "UP", 51.5, 97.40, "PROFIT"
 
 def send_welcome_menu(chat_id, is_next=False):
@@ -157,14 +155,12 @@ def handle_button_click(chat_id, message_id, callback_data):
             init_session(chat_id)
             
         s = active_sessions[chat_id]
-        
-        # লাইভ টাইমস্ট্যাম্প নেওয়া
         trade_time, candle_time = get_times()
         
         # ৫ মিনিটের ডিপ ডেটা স্ক্যান
         direction, trend, rsi, accuracy, current_result = analyze_stable_5m_market(pair)
         
-        # যদি ফিল্টার বলে মার্কেট নিউট্রাল, তবে সিগন্যাল না দিয়ে রিজেক্ট মেসেজ যাবে
+        # নিউট্রাল মার্কেট রেসপন্স
         if direction is None:
             neutral_msg = (
                 f"⚠️ **মার্কেট অ্যালার্ট: {display_pair}**\n"
@@ -188,7 +184,6 @@ def handle_button_click(chat_id, message_id, callback_data):
             requests.post(f"{TELEGRAM_API}/editMessageText", json=payload)
             return
 
-        # যদি মার্কেট স্ট্রং থাকে, তবে সফলভাবে ট্রেড কাউন্ট হবে
         s["trades"] += 1
         res_string = "✅ PROFIT" if current_result == "PROFIT" else "❌ LOSS"
         
@@ -199,14 +194,14 @@ def handle_button_click(chat_id, message_id, callback_data):
             
         trade_num = s["trades"]
         
-        # আপনার রিকোয়ারমেন্ট অনুযায়ী: ১. কারেন্সি, ২. ডিরেকশন, ৩. টাইমফ্রেম (৫ মিনিট), ৪. প্লেসিং টাইম অ্যাড করা হলো
+        # ডিটেইলড সেশন ডাটা ট্র্যাকিং
         s["history"].append(
             f"{trade_num}. {display_pair} ({trend}) ➡️ [Timeframe: 5 MIN] ➡️ [Time: {trade_time}] ➡️ {res_string}"
         )
 
-        title_text = "🎯 **QUOTEX 5-MINUTE ULTRA SURE SHOT** 🎯"
+        title_text = "💎 **TRADINGVIEW LIVE MARKET SHOT** 💎"
         expiry = f"`5 MIN` (ক্যান্ডেল শুরু: **{candle_time}**)"
-        confirmation_tag = "💎 5-MIN DEEP CONFLUENCE SHOT (REAL TIME)"
+        confirmation_tag = "💎 5-MIN DEEP CONFLUENCE SHOT"
         
         signal_msg = (
             f"{title_text}\n"
@@ -216,12 +211,12 @@ def handle_button_click(chat_id, message_id, callback_data):
             f"⏳ **টাইমফ্রেম (Expiry):** {expiry}\n"
             f"⏰ **সিগন্যাল জেনারেট টাইম:** `{trade_time}`\n"
             f"📈 **মার্কেট RSI ভ্যালু:** `{rsi}`\n"
-            f"🏆 **সিস্টেম একুরেসি:** `{accuracy}%` 🔥\n"
+            f"🏆 **অ্যানালাইসিস কনফরমেশন:** `{accuracy}%` 🔥\n"
             f" স্ট্যাটাস: *{confirmation_tag}*\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
             f"🔢 এই সেশনের বর্তমান মোট ট্রেড: `{trade_num}` টি\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "💡 *পরবর্তী ৫-মিনিটের নিখুঁত সিগন্যাল পেতে নিচে 'Next Market' বাটনে চাপুন।*"
+            "💡 *পরবর্তী লাইভ মার্কেট সিগন্যাল পেতে নিচে 'Next Market' বাটনে চাপুন।*"
         )
         
         payload = {
